@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="glass-card rounded-4 overflow-hidden">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-3">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <h4 class="mb-0 fw-bold"><i class="bi bi-people-fill text-primary"></i> 用户管理</h4>
+                    </div>
+                    <div class="col-md-6 text-md-end mt-3 mt-md-0 d-flex justify-content-md-end gap-2">
+                         <!-- 搜索框：半透明圆角 -->
+                        <div class="input-group" style="max-width: 250px;">
+                            <span class="input-group-text bg-transparent border-secondary border-opacity-25 rounded-start-pill text-reset"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchInput" class="form-control bg-transparent border-secondary border-opacity-25 rounded-end-pill text-reset" placeholder="搜索用户名...">
+                        </div>
+                        <a href="{{ url_for('register') }}" class="btn btn-primary rounded-pill px-3 shadow-sm">
+                            <i class="bi bi-person-plus"></i> 新增
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="userTable">
+                        <thead class="text-secondary border-bottom border-secondary border-opacity-10">
+                            <tr>
+                                <th class="ps-4">ID</th>
+                                <th>用户名</th>
+                                <th>角色权限</th>
+                                <th class="text-end pe-4">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr id="row-{{ user[0] }}">
+                                <td class="ps-4 opacity-50">#{{ user[0] }}</td>
+                                <td class="fw-bold">{{ user[1] }}</td>
+                                <td>
+                                    {% if user[2] == 1 %}
+                                    <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger px-3 py-2">
+                                        <i class="bi bi-shield-lock-fill"></i> 管理员
+                                    </span>
+                                    {% else %}
+                                    <span class="badge rounded-pill bg-success bg-opacity-10 text-success px-3 py-2">
+                                        <i class="bi bi-person-fill"></i> 普通用户
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if user[0] != current_user.id|int %}
+                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3 delete-user"
+                                            data-userid="{{ user[0] }}"
+                                            data-username="{{ user[1] }}">
+                                        <i class="bi bi-trash"></i> 删除
+                                    </button>
+                                    {% else %}
+                                    <span class="badge rounded-pill bg-secondary bg-opacity-25 text-reset border">当前登录</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="opacity-25 mb-3"><i class="bi bi-people display-1"></i></div>
+                    <h4>暂无用户数据</h4>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* JS 逻辑保持不变 */
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const table = document.getElementById('userTable');
+    if(table && searchInput) {
+        searchInput.addEventListener('keyup', function() {
+            const filter = this.value.toLowerCase();
+            const rows = table.getElementsByTagName('tr');
+            for (let i = 1; i < rows.length; i++) {
+                const usernameCell = rows[i].getElementsByTagName('td')[1];
+                if (usernameCell) {
+                    const txtValue = usernameCell.textContent || usernameCell.innerText;
+                    rows[i].style.display = txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
+                }
+            }
+        });
+    }
+    document.querySelectorAll('.delete-user').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userid;
+            const row = document.getElementById(`row-${userId}`);
+            if (confirm(`确定要永久删除用户 "${this.dataset.username}" 吗？`)) {
+                this.disabled = true; this.innerHTML = '...';
+                fetch(`/api/delete-user/${userId}`, { method: 'DELETE' })
+                .then(r => r.json()).then(d => {
+                    if (d.success) { row.remove(); if(document.querySelectorAll('tbody tr').length===0) location.reload(); }
+                    else { alert(d.message); this.disabled=false; this.innerHTML='<i class="bi bi-trash"></i> 删除'; }
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

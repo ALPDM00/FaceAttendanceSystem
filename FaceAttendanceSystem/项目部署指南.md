@@ -1,0 +1,310 @@
+# 人脸识别考勤系统项目部署指南
+
+## 项目概述
+本项目是一个基于Flask的人脸识别考勤系统，使用OpenCV和face-recognition库进行人脸检测与识别，SQLite作为数据库，提供Web界面进行用户管理、人脸录入和考勤打卡等功能。
+
+## 一、环境准备
+
+### 1.1 系统要求
+- **操作系统**：Windows 10/11，macOS 10.15+ 或 Ubuntu 18.04+
+- **Python版本**：Python 3.8 - 3.10（推荐Python 3.10.19）
+- **内存**：至少4GB RAM
+- **磁盘空间**：至少2GB可用空间
+- **摄像头**：内置或外接USB摄像头
+
+### 1.2 安装Python
+1. 访问Python官网：https://www.python.org/downloads/
+2. 下载Python 3.10.19安装包
+3. 安装时勾选"Add Python to PATH"选项
+4. 验证安装：打开终端/命令提示符，输入 `python --version`
+
+### 1.3 安装Git（可选，用于克隆项目）
+```bash
+# Windows：从 https://git-scm.com/ 下载安装
+# macOS：brew install git
+# Ubuntu：sudo apt-get install git
+```
+
+## 二、项目获取
+
+### 2.1 下载项目文件
+有三种方式获取项目文件：
+
+**方式一：直接复制文件**
+将以下整个项目文件夹复制到新电脑：
+```
+FaceAttendanceSystem/
+├── src/
+├── templates/
+├── static/
+├── requirements.txt
+├── 测试用例.md
+└── 项目部署指南.md
+```
+
+**方式二：使用Git克隆**
+```bash
+# 如果项目已在Git仓库中
+git clone <项目仓库地址>
+cd FaceAttendanceSystem
+```
+
+**方式三：下载ZIP压缩包**
+1. 将项目文件夹压缩为ZIP文件
+2. 传输到新电脑并解压
+
+## 三、环境配置
+
+### 3.1 创建虚拟环境（推荐）
+```bash
+# 进入项目目录
+cd FaceAttendanceSystem
+
+# 创建虚拟环境
+python -m venv venv
+
+# 激活虚拟环境
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+```
+
+### 3.2 安装依赖包
+```bash
+# 确保在虚拟环境中
+pip install -r requirements.txt
+```
+
+**注意**：face-recognition库需要C编译环境，如果安装失败，请先安装以下依赖：
+
+- **Windows**：
+  1. 安装Visual Studio Build Tools（勾选C++桌面开发）
+  2. 安装CMake：https://cmake.org/download/
+
+- **macOS**：
+  ```bash
+  brew install cmake
+  xcode-select --install
+  ```
+
+- **Ubuntu**：
+  ```bash
+  sudo apt-get update
+  sudo apt-get install build-essential cmake
+  ```
+
+### 3.3 安装OpenCV额外组件（如需要）
+```bash
+# 如果face-recognition安装仍有问题，可尝试先安装dlib
+pip install dlib==19.24.0
+pip install opencv-python==4.8.1.78
+pip install face-recognition==1.3.0
+```
+
+## 四、数据库配置
+
+### 4.1 创建数据库目录
+```bash
+# 在E盘创建sqlite目录（或根据实际情况修改）
+# Windows：
+mkdir E:\sqlite
+# macOS/Linux：
+mkdir -p /path/to/sqlite
+```
+
+### 4.2 修改数据库路径（如需要）
+如果E盘不可用，需要修改数据库路径：
+
+1. 打开 `src/db/db_helper.py`
+2. 修改第7行的DB_PATH：
+```python
+# 原路径
+DB_PATH = Path(r"E:\sqlite\attendance_system.db")
+
+# 修改为（例如在项目目录下）
+DB_PATH = Path(r"./attendance_system.db")
+```
+
+3. 同时修改 `src/main.py` 中的数据库路径：
+```python
+# 第18行附近
+app.config['DATABASE_PATH'] = 'attendance_system.db'  # 相对路径
+```
+
+### 4.3 初始化数据库
+运行系统时会自动创建数据库表和默认管理员账户：
+- 用户名：admin
+- 密码：123456
+
+## 五、运行系统
+
+### 5.1 启动开发服务器
+```bash
+# 确保在项目根目录下
+python src/main.py
+```
+
+正常启动后，控制台会显示：
+```
+[INFO] 初始化数据库...
+[INFO] 数据库初始化完成
+[INFO] 应用初始化完成
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.x.x:5000
+```
+
+### 5.2 访问系统
+1. 打开浏览器（推荐Microsoft Edge或Chrome）
+2. 访问：http://localhost:5000
+3. 系统会自动打开浏览器（如未自动打开，请手动输入地址）
+
+### 5.3 停止服务器
+在终端中按 `Ctrl+C` 停止服务器。
+
+## 六、首次使用配置
+
+### 6.1 登录系统
+1. 使用默认管理员账户登录：
+   - 用户名：admin
+   - 密码：123456
+2. 首次登录后建议立即修改密码
+
+### 6.2 创建新用户
+1. 登录管理员账户
+2. 点击"管理"菜单
+3. 点击"新增"按钮创建新用户
+
+### 6.3 人脸录入
+1. 用户登录后，点击"人脸录入"菜单
+2. 按照提示拍照录入人脸
+3. 确保光线充足，面部清晰
+
+### 6.4 测试打卡功能
+1. 点击"人脸打卡"菜单
+2. 测试上班打卡、下班打卡功能
+3. 验证陌生人识别功能
+
+## 七、常见问题与解决
+
+### 7.1 摄像头无法使用
+**症状**：页面显示"无法启动摄像头"
+**解决**：
+1. 检查摄像头是否被其他程序占用
+2. 在浏览器中允许网站使用摄像头
+3. 检查摄像头驱动程序
+
+### 7.2 人脸识别失败
+**症状**：始终提示"未检测到人脸"
+**解决**：
+1. 确保环境光线充足
+2. 调整摄像头角度
+3. 检查是否已正确录入人脸
+
+### 7.3 数据库连接错误
+**症状**：登录时提示"系统初始化失败"
+**解决**：
+1. 检查数据库文件路径是否正确
+2. 确保有写入权限
+3. 检查磁盘空间
+
+### 7.4 依赖包安装失败
+**症状**：pip install失败，特别是face-recognition
+**解决**：
+1. 先安装CMake和C++编译工具
+2. 尝试降低dlib版本
+3. 使用conda环境：
+   ```bash
+   conda create -n face python=3.10
+   conda activate face
+   conda install -c conda-forge dlib
+   pip install -r requirements.txt
+   ```
+
+## 八、生产环境部署建议
+
+### 8.1 使用生产WSGI服务器
+```bash
+# 安装Gunicorn（Linux/macOS）
+pip install gunicorn
+
+# 启动服务
+gunicorn -w 4 -b 0.0.0.0:5000 "src.main:app"
+```
+
+### 8.2 使用Nginx反向代理（Linux）
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+    
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+### 8.3 设置开机自启动
+**Windows**：创建批处理文件放入启动文件夹
+**Linux**：创建systemd服务文件
+**macOS**：使用launchd
+
+## 九、数据备份与迁移
+
+### 9.1 备份数据库
+```bash
+# 复制数据库文件
+cp attendance_system.db attendance_system_backup.db
+```
+
+### 9.2 迁移到新服务器
+1. 在新服务器上按照本指南配置环境
+2. 复制整个项目文件夹
+3. 复制数据库文件
+4. 修改配置文件（如有需要）
+5. 启动服务
+
+## 十、安全注意事项
+
+1. **修改默认密码**：首次使用后立即修改admin密码
+2. **更新密钥**：修改 `src/main.py` 中的SECRET_KEY
+3. **防火墙配置**：仅开放必要端口
+4. **定期备份**：定期备份数据库文件
+5. **日志监控**：监控系统日志，及时发现异常
+
+## 附录
+
+### A. 项目文件结构说明
+```
+FaceAttendanceSystem/
+├── src/                    # Python源代码
+│   ├── main.py            # Flask主程序
+│   ├── db/                # 数据库模块
+│   ├── face/              # 人脸识别模块
+│   └── utils/             # 工具模块
+├── templates/             # HTML模板
+├── static/               # 静态资源
+├── requirements.txt      # Python依赖
+├── 测试用例.md           # 测试文档
+└── 项目部署指南.md       # 本部署指南
+```
+
+### B. 默认账户
+- 管理员：admin / 123456
+- 普通用户：需管理员创建或自助注册
+
+### C. 技术支持
+如遇到无法解决的问题：
+1. 检查控制台错误信息
+2. 查看项目文档
+3. 搜索相关技术论坛
+4. 联系开发人员
+
+---
+
+*文档版本：v1.0*
+*更新日期：2025-12-24*
+*适用系统版本：人脸识别考勤系统 v1.0*

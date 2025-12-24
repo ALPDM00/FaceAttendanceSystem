@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}登录 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-5 col-lg-4">
+        <!-- 使用 glass-card 替代普通的 card -->
+        <div class="glass-card p-5">
+            <div class="text-center mb-4">
+
+                <i class="bi bi-person-circle fs-1 text-primary"></i>
+
+                <h3 class="fw-bold">用户登录</h3>
+            </div>
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-floating mb-3">
+                    <!-- 输入框背景透明度在 base.html 定义 -->
+                    <input type="text" class="form-control" id="username" name="username" placeholder="用户名" required 
+                           value="{{ username if username else '' }}">
+                    <label for="username" style="color: gray;">用户名</label>
+                </div>
+                <div class="form-floating mb-4">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="密码" required>
+                    <label for="password" style="color: gray;">密码</label>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg shadow-sm">登录</button>
+                </div>
+            </form>
+
+            <div class="mt-4 text-center border-top border-secondary pt-3">
+                <span class="opacity-75 small">还没有账号？</span>
+                <a href="{{ url_for('signup') }}" class="text-decoration-none fw-bold text-primary">立即注册</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

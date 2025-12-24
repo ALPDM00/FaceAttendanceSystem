@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}我的考勤 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 offset-md-1">
+        <div class="glass-card rounded-4 overflow-hidden">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-3 d-flex justify-content-between align-items-center">
+                <h4 class="mb-0 fw-bold"><i class="bi bi-clock-history text-primary"></i> 我的考勤记录</h4>
+                <span class="badge rounded-pill bg-primary bg-opacity-25 text-primary">{{ records|length }} 条</span>
+            </div>
+            <div class="card-body p-0">
+                {% if records %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="text-secondary border-bottom border-secondary border-opacity-10">
+                            <tr>
+                                <th class="ps-4">日期</th>
+                                <th>打卡时间</th>
+                                <th>类型</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in records %}
+                            <tr>
+                                <td class="ps-4 opacity-75">{{ record[0][:10] }}</td>
+                                <td class="fw-bold">{{ record[0][11:] }}</td>
+                                <td>
+                                    {% if record[1] == '上班' %}
+                                        <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary px-3">上班</span>
+                                    {% else %}
+                                        <span class="badge rounded-pill bg-warning bg-opacity-10 text-warning px-3">下班</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record[2] == '正常' %}
+                                        <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> 正常</span>
+                                    {% elif record[2] in ['迟到', '早退'] %}
+                                        <span class="text-warning small fw-bold"><i class="bi bi-exclamation-circle-fill"></i> {{ record[2] }}</span>
+                                    {% else %}
+                                        <span class="text-danger small fw-bold"><i class="bi bi-x-circle-fill"></i> {{ record[2] }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 opacity-25"></i>
+                    <p class="opacity-75 mt-3">暂无考勤记录，快去<a href="{{ url_for('attendance') }}" class="text-primary fw-bold">打卡</a>吧！</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

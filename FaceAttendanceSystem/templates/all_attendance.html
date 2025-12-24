@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}全局考勤记录 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <!-- 替换 card 为 glass-card，增加 rounded-4 -->
+        <div class="glass-card rounded-4 overflow-hidden">
+            <div class="card-header bg-transparent border-bottom border-secondary border-opacity-10 py-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="mb-0 fw-bold"><i class="bi bi-table me-2 text-primary"></i>全局考勤报表</h4>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-success rounded-pill btn-sm px-3 dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-download me-1"></i> 导出
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="javascript:void(0);" onclick="exportToExcel()"><i class="bi bi-file-earmark-excel text-success"></i> 导出为Excel</a></li>
+                            <li><a class="dropdown-item" href="javascript:void(0);" onclick="exportToCSV()"><i class="bi bi-filetype-csv text-info"></i> 导出为CSV</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 筛选表单：移除 bg-light，改为半透明背景 -->
+                <form action="{{ url_for('all_attendance') }}" method="GET" class="row g-3 p-3 rounded-4 border border-secondary border-opacity-10" style="background: rgba(var(--bs-body-bg-rgb), 0.3); border-radius: 24px !important;">
+                    <div class="col-md-3">
+                        <label class="form-label small opacity-75">员工姓名</label>
+                        <input type="text" name="username" class="form-control rounded-pill" placeholder="输入姓名..." value="{{ f_name }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small opacity-75">考勤类型</label>
+                        <select name="type" class="form-select rounded-pill">
+                            <option value="所有">全部类型</option>
+                            <option value="上班" {% if f_type=='上班' %}selected{% endif %}>上班</option>
+                            <option value="下班" {% if f_type=='下班' %}selected{% endif %}>下班</option>
+                            <option value="请假" {% if f_type=='请假' %}selected{% endif %}>请假</option>
+                            <option value="旷工" {% if f_type=='旷工' %}selected{% endif %}>旷工</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small opacity-75">状态</label>
+                        <select name="status" class="form-select rounded-pill">
+                            <option value="所有">全部状态</option>
+                            <option value="正常" {% if f_status=='正常' %}selected{% endif %}>正常</option>
+                            <option value="迟到" {% if f_status=='迟到' %}selected{% endif %}>迟到</option>
+                            <option value="早退" {% if f_status=='早退' %}selected{% endif %}>早退</option>
+                            <option value="病假" {% if f_status=='病假' %}selected{% endif %}>病假</option>
+                            <option value="事假" {% if f_status=='事假' %}selected{% endif %}>事假</option>
+                            <option value="公假" {% if f_status=='公假' %}selected{% endif %}>公假</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small opacity-75">日期</label>
+                        <input type="date" name="date" class="form-control rounded-pill" value="{{ f_date }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill shadow-sm"><i class="bi bi-funnel"></i> 筛选</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card-body p-0">
+                {% if records %}
+                <div class="table-responsive rounded-4 overflow-hidden">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="text-secondary border-bottom border-secondary border-opacity-10">
+                            <tr>
+                                <th class="ps-4 py-3">#</th>
+                                <th class="py-3">员工姓名</th>
+                                <th class="py-3">打卡时间</th>
+                                <th class="py-3">类型</th>
+                                <th class="py-3">状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in records %}
+                            <tr>
+                                <td class="ps-4 opacity-50">{{ loop.index }}</td>
+                                <td class="fw-bold">{{ record[0] }}</td>
+                                <td class="opacity-75">{{ record[1] }}</td>
+                                <td>
+                                    {% if record[2] == '上班' %}
+                                        <span class="badge rounded-pill bg-primary bg-opacity-25 text-primary">上班</span>
+                                    {% elif record[2] == '下班' %}
+                                        <span class="badge rounded-pill bg-warning bg-opacity-25 text-warning">下班</span>
+                                    {% elif record[2] == '请假' %}
+                                        <span class="badge rounded-pill bg-info bg-opacity-25 text-info">请假</span>
+                                    {% elif record[2] == '旷工' %}
+                                        <span class="badge rounded-pill bg-danger bg-opacity-25 text-danger">旷工</span>
+                                    {% else %}
+                                        <span class="badge rounded-pill bg-secondary">{{ record[2] }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if record[3] == '正常' %}
+                                        <span class="text-success small fw-bold"><i class="bi bi-check-circle-fill"></i> 正常</span>
+                                    {% elif record[3] in ['迟到', '早退'] %}
+                                        <span class="text-warning small fw-bold"><i class="bi bi-exclamation-circle-fill"></i> {{ record[3] }}</span>
+                                    {% elif record[3] in ['病假', '事假', '公假'] %}
+                                        <span class="text-info small fw-bold"><i class="bi bi-info-circle-fill"></i> {{ record[3] }}</span>
+                                    {% else %}
+                                        <span class="text-danger small fw-bold"><i class="bi bi-x-circle-fill"></i> {{ record[3] }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox display-1 opacity-25"></i>
+                    <p class="opacity-75 mt-3">没有找到符合条件的记录</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function exportTableToCSV(filename) {
+        const table = document.querySelector('table');
+        let csv = [];
+        // 获取表头
+        const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.innerText.trim());
+        csv.push(headers.join(','));
+
+        // 获取表格数据
+        table.querySelectorAll('tbody tr').forEach(row => {
+            let rowData = [];
+            row.querySelectorAll('td').forEach(cell => {
+                let text = cell.innerText.trim();
+                // 处理逗号和引号
+                if (text.includes(',') || text.includes('"')) {
+                    text = `"${text.replace(/"/g, '""')}"`;
+                }
+                rowData.push(text);
+            });
+            csv.push(rowData.join(','));
+        });
+
+        // 创建下载链接
+        const csvFile = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const downloadLink = document.createElement('a');
+        downloadLink.href = URL.createObjectURL(csvFile);
+        downloadLink.download = filename;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    }
+
+    function exportToCSV() {
+        exportTableToCSV('考勤报表.csv');
+    }
+
+    function exportToExcel() {
+        // 实际上是导出CSV，但保存为.xls文件，Excel可以打开
+        exportTableToCSV('考勤报表.xls');
+    }
+
+</script>
+{% endblock %}

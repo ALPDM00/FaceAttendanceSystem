@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}人脸识别考勤系统{% endblock %}</title>
+
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap-icons/1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <style>
+        :root {
+            /* 默认白天模式变量 */
+            --text-color: #171717;
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.4);
+            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            --input-bg: rgba(255, 255, 255, 0.5);
+            --navbar-bg: rgba(255, 255, 255, 0.8);
+            --loader-bg: rgba(255, 230, 157, 1); /* 白天加载背景 */
+            --loader-color: #000000; /* 白天加载动画条颜色 - 改为黑色 */
+        }
+
+        /* 夜间模式变量 */
+        body.night-mode {
+            --text-color: #f7f7f7;
+            --glass-bg: rgba(26, 26, 26, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --input-bg: rgba(0, 0, 0, 0.3);
+            --navbar-bg: rgba(16, 18, 27, 0.8);
+            --loader-bg: rgba(16, 18, 27, 1); /* 夜间加载背景 */
+            --loader-color: #f0f0f0; /* 夜间加载动画条颜色 - 改为灰白色 */
+        }
+
+        /* 强制始终显示垂直滚动条，防止跳动 */
+        html { overflow-y: scroll; }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: #FFE69D; /* 默认白天背景 */
+            color: var(--text-color);
+            min-height: 100vh;
+            transition: color 0.5s ease, background-color 1s ease;
+            box-sizing: border-box;
+        }
+
+        body.night-mode {
+            background-color: #10121b; /* 夜间背景 */
+        }
+
+        /* Canvas & 遮罩 */
+        #canvas {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -2;
+        }
+        .hero-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(150, 150, 150, 0.1);
+            backdrop-filter: blur(60px); -webkit-backdrop-filter: blur(60px);
+            z-index: -1; pointer-events: none;
+        }
+
+        /* 毛玻璃卡片 */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+            color: var(--text-color);
+            transition: transform 0.3s ease, background 0.3s ease;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            background: var(--navbar-bg) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .navbar-brand, .nav-link { color: var(--text-color) !important; }
+
+        /* 输入框 */
+        .form-control, .form-select {
+            background-color: var(--input-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-color);
+        }
+        .form-control:focus {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        /* 加载动画容器 */
+        .loading-container {
+            position: fixed;
+            top: 0; left: 0; 
+            width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            background: var(--loader-bg); /* 这里会根据 body 类名立即应用正确的颜色 */
+            z-index: 9999;
+            opacity: 1; 
+            pointer-events: all;
+            transition: opacity 0.4s ease-in-out; 
+        }
+        .loading-container.hidden { opacity: 0; pointer-events: none; }
+
+        .loading { display: flex; align-items: center; height: 40px; }
+        .obj {
+            width: 6px; height: 40px; 
+            background: var(--loader-color, var(--text-color));
+            margin: 0 3px; border-radius: 3px;
+            animation: loading 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            will-change: transform, opacity;
+        }
+        .obj:nth-child(1) { animation-delay: 0s; }
+        .obj:nth-child(2) { animation-delay: 0.1s; }
+        .obj:nth-child(3) { animation-delay: 0.2s; }
+        .obj:nth-child(4) { animation-delay: 0.3s; }
+        .obj:nth-child(5) { animation-delay: 0.4s; }
+        .obj:nth-child(6) { animation-delay: 0.5s; }
+        .obj:nth-child(7) { animation-delay: 0.6s; }
+        .obj:nth-child(8) { animation-delay: 0.7s; }
+        @keyframes loading {
+            0%, 100% { 
+                transform: scaleY(0.4); 
+                opacity: 0.6; 
+            }
+            50% { 
+                transform: scaleY(1); 
+                opacity: 1; 
+            }
+        }
+
+        /* 页面内容 */
+        #page-content {
+            opacity: 0; 
+            transform: translateY(15px);
+            transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        #page-content.show { opacity: 1; transform: translateY(0); }
+
+        .table { color: var(--text-color); }
+        .table-hover tbody tr:hover { color: var(--text-color); background-color: rgba(0,0,0,0.05); }
+        body.night-mode .table-light { background-color: transparent; color: #fff; }
+    </style>
+</head>
+<body>
+    <!-- 关键修改：脚本前置，阻止渲染阻塞 -->
+    <script>
+        (function() {
+            // 在 body 内容渲染前立即执行
+            // 获取当前小时
+            var h = new Date().getHours();
+            // 如果是 18点以后 或 6点以前
+            if (h >= 18 || h < 6) {
+                // 立即给 body 添加 night-mode 类
+                // 因为脚本在这里执行时，body 元素刚刚被创建，还未填充内容
+                document.body.classList.add('night-mode');
+            }
+        })();
+    </script>
+
+    <!-- 1. 背景 Canvas -->
+    <canvas id="canvas"></canvas>
+    <div class="hero-overlay"></div>
+
+    <!-- 2. 加载层 -->
+    <div class="loading-container">
+        <div class="loading">
+            <div class="obj"></div><div class="obj"></div><div class="obj"></div>
+            <div class="obj"></div><div class="obj"></div><div class="obj"></div>
+            <div class="obj"></div><div class="obj"></div>
+        </div>
+    </div>
+
+    <!-- 3. 导航栏 -->
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('dashboard') }}">
+                <i class="bi bi-camera-reels-fill text-primary"></i> 智脸考勤
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <i class="bi bi-list" style="color: var(--text-color);"></i>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link transition-link" href="{{ url_for('dashboard') }}">首页</a></li>
+                        <li class="nav-item"><a class="nav-link transition-link" href="{{ url_for('attendance') }}">人脸打卡</a></li>
+                        <li class="nav-item"><a class="nav-link transition-link" href="{{ url_for('my_attendance') }}">我的记录</a></li>
+                        {% if current_user.is_admin %}
+                        <li class="nav-item"><a class="nav-link transition-link" href="{{ url_for('all_attendance') }}">报表</a></li>
+                        <li class="nav-item"><a class="nav-link transition-link" href="{{ url_for('manage_users') }}">管理</a></li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link transition-link" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i> 退出</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 4. 消息提示 -->
+    <div id="flash-messages" style="position: fixed; top: 80px; right: 20px; z-index: 9999;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} glass-card alert-dismissible fade show border-0">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 5. 主要内容 -->
+    <div class="container mt-4 mb-5" id="page-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // ==========================================
+        // 1. Canvas 背景逻辑
+        // ==========================================
+        // 注意：日夜判断逻辑已移至 body 顶部，这里只需读取状态
+        const isNight = document.body.classList.contains('night-mode');
+
+        const canvas = document.querySelector("#canvas");
+        const ctx = canvas.getContext("2d");
+
+        const colorsDay = ["#FEF4DE", "#FFB904", "#FF9302", "#F8FAE7"];
+        const colorsNight = ["#F8FAE7", "#D0ECF4", "#7DAFDD", "#315BB8"];
+        const activeColors = isNight ? colorsNight : colorsDay;
+
+        function randomBetween(min, max) { return Math.random() * (max - min) + min; }
+
+        let circles = [];
+        function initCircles() {
+            circles = [];
+            let circleCount = window.innerWidth / 100;
+            for (let i = 0; i < circleCount; i++) {
+                let radius = window.innerWidth / 4;
+                let x = randomBetween(radius, canvas.width - radius);
+                let y = randomBetween(radius, canvas.height - radius);
+                let dx = randomBetween(window.innerWidth / -2000, window.innerWidth / 2000);
+                let dy = randomBetween(window.innerWidth / -2000, window.innerWidth / 2000);
+                let color = activeColors[Math.floor(Math.random() * activeColors.length)];
+                circles.push({ x, y, dx, dy, radius, color });
+            }
+        }
+
+        function drawCircle(circle) {
+            ctx.beginPath();
+            ctx.arc(circle.x, circle.y, circle.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = circle.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            circles.forEach(circle => {
+                if (circle.x + circle.radius > canvas.width || circle.x - circle.radius < 0) circle.dx = -circle.dx;
+                if (circle.y + circle.radius > canvas.height || circle.y - circle.radius < 0) circle.dy = -circle.dy;
+                circle.x += circle.dx;
+                circle.y += circle.dy;
+                drawCircle(circle);
+            });
+        }
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth * 1.5;
+            canvas.height = window.innerHeight * 1.5;
+            initCircles();
+        }
+
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+        animate();
+
+        // ==========================================
+        // 2. 页面加载与跳转优化
+        // ==========================================
+        
+        // 页面初始加载时立即隐藏加载动画，不显示过渡效果
+        window.addEventListener('load', () => {
+            // 立即隐藏加载动画，不显示过渡
+            document.querySelector('.loading-container').classList.add('hidden');
+            document.getElementById('page-content').classList.add('show');
+        });
+
+        // 只有链接点击（页面跳转）才显示加载动画
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a');
+            // 只有当链接是内部链接且没有 download 属性时才触发加载动画
+            if (link && link.href && link.href.startsWith(window.location.origin) && !link.hash && !link.target && !link.hasAttribute('download')) {
+                e.preventDefault();
+                const url = link.href;
+                
+                // 先显示加载动画
+                const loadingContainer = document.querySelector('.loading-container');
+                loadingContainer.classList.remove('hidden');
+                
+                // 设置超时机制：如果10秒后页面仍未跳转，自动隐藏加载动画
+                const timeoutId = setTimeout(() => {
+                    loadingContainer.classList.add('hidden');
+                    console.warn('页面跳转超时，已自动隐藏加载动画');
+                }, 10000); // 10秒超时
+                
+                // 立即开始页面跳转，减少延迟
+                setTimeout(() => { 
+                    // 清除超时定时器
+                    clearTimeout(timeoutId);
+                    window.location.href = url; 
+                }, 50);
+            }
+            
+            // 对于表单提交按钮，不显示加载动画
+            const button = e.target.closest('button');
+            if (button && button.type === 'submit') {
+                // 表单提交时不显示加载动画
+                // 但我们需要确保页面内容立即显示
+                document.querySelector('.loading-container').classList.add('hidden');
+                document.getElementById('page-content').classList.add('show');
+            }
+        });
+
+        // 表单提交时也不显示加载动画
+        document.addEventListener('submit', function(e) {
+            // 表单提交时不显示加载动画
+            document.querySelector('.loading-container').classList.add('hidden');
+            document.getElementById('page-content').classList.add('show');
+        });
+
+        // 添加页面可见性检测：当页面变为隐藏时（跳转开始），确保加载动画显示
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                // 页面正在跳转，确保加载动画显示
+                document.querySelector('.loading-container').classList.remove('hidden');
+            }
+        });
+
+        // 添加beforeunload事件：页面卸载前确保加载动画显示
+        window.addEventListener('beforeunload', function() {
+            document.querySelector('.loading-container').classList.remove('hidden');
+        });
+
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(el => new bootstrap.Alert(el).close());
+        }, 3000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

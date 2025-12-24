@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}添加用户 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="glass-card rounded-4 p-4">
+            <div class="text-center mb-4">
+                <h4 class="fw-bold">创建新账号</h4>
+                <p class="small opacity-75">管理员后台添加</p>
+            </div>
+            
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="mb-3">
+                    <label class="form-label opacity-75">用户名</label>
+                    <!-- 输入框样式会自动继承 base.html -->
+                    <input type="text" class="form-control rounded-pill" name="username" required placeholder="请输入真实姓名">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label opacity-75">初始化密码</label>
+                    <input type="password" class="form-control rounded-pill" name="password" required placeholder="设置登录密码">
+                </div>
+
+                <!-- 权限选择：使用半透明背景 -->
+                <div class="mb-4 p-3 rounded-4 border border-secondary border-opacity-10" style="background: rgba(var(--bs-body-bg-rgb), 0.2);">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_admin" name="is_admin">
+                        <label class="form-check-label fw-bold" for="is_admin">授予管理员权限</label>
+                    </div>
+                    <small class="opacity-50 d-block mt-1">管理员可以查看所有考勤记录并管理其他用户。</small>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('manage_users') }}" class="btn btn-outline-secondary rounded-pill flex-fill">取消</a>
+                    <button type="submit" class="btn btn-primary rounded-pill flex-fill shadow-sm">确认创建</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}管理中心 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<style>
+    /* 针对 dashboard 的特殊调整 */
+    .dashboard-banner {
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.8) 0%, rgba(10, 88, 202, 0.8) 100%);
+        backdrop-filter: blur(5px);
+        border-radius: 16px;
+        padding: 3rem;
+        color: white;
+        margin-bottom: 3rem;
+        box-shadow: 0 10px 30px rgba(13, 110, 253, 0.2);
+    }
+    
+    /* 功能卡片样式覆盖 */
+    .feature-card {
+        cursor: pointer;
+        height: 100%;
+        /* 继承 base.html 的 glass-card 样式，并增加悬停效果 */
+        transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-10px);
+        /* 悬停时稍微加深背景，增加对比 */
+        background-color: rgba(var(--bs-primary-rgb), 0.1); 
+        border-color: var(--bs-primary);
+    }
+    
+    /* 图标颜色适配 */
+    .icon-box { transition: color 0.3s; }
+    .feature-card:hover .icon-box { transform: scale(1.1); }
+</style>
+
+<div class="row mt-4">
+    <div class="col-md-10 offset-md-1">
+        
+        <!-- 头部 Banner -->
+        <div class="dashboard-banner d-flex justify-content-between align-items-center flex-wrap">
+            <div>
+                <h1 class="display-5 fw-bold mb-2" id="greeting">你好，{{ user.username }}</h1>
+                <p class="lead mb-0 opacity-75">
+                    {% if user.is_admin %}管理员权限已激活{% else %}祝您工作顺利{% endif %}
+                </p>
+            </div>
+            <div class="text-end mt-3 mt-md-0">
+                <div class="display-4 fw-bold" id="live-clock" style="font-family: monospace;">00:00:00</div>
+                <div class="small opacity-75" id="live-date">YYYY-MM-DD</div>
+            </div>
+        </div>
+        
+        <!-- 常用功能 -->
+        <h5 class="mb-4 fw-bold ps-3 border-start border-4 border-primary">常用功能</h5>
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <a href="{{ url_for('attendance') }}" class="text-decoration-none text-reset">
+                    <div class="glass-card feature-card p-4 text-center">
+                        <i class="bi bi-camera-fill display-4 text-primary icon-box d-block mb-3"></i>
+                        <h5 class="fw-bold mb-2">人脸打卡</h5>
+                        <p class="small opacity-75">每日上下班打卡入口，支持自动连拍模式。</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('my_attendance') }}" class="text-decoration-none text-reset">
+                    <div class="glass-card feature-card p-4 text-center">
+                        <i class="bi bi-journal-text display-4 text-info icon-box d-block mb-3"></i>
+                        <h5 class="fw-bold mb-2">我的记录</h5>
+                        <p class="small opacity-75">查看个人的历史考勤流水，核对出勤时间。</p>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-4">
+                <a href="{{ url_for('face_register') }}" class="text-decoration-none text-reset">
+                    <div class="glass-card feature-card p-4 text-center">
+                        <i class="bi bi-person-bounding-box display-4 text-warning icon-box d-block mb-3"></i>
+                        <h5 class="fw-bold mb-2">人脸录入</h5>
+                        <p class="small opacity-75">更新或重新录入您的面部数据，提高识别率。</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+        
+        <!-- 管理员专区 -->
+        {% if user.is_admin %}
+        <h5 class="mb-4 fw-bold ps-3 border-start border-4 border-danger">管理员专区</h5>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <a href="{{ url_for('all_attendance') }}" class="text-decoration-none text-reset">
+                    <div class="glass-card feature-card p-4 d-flex align-items-center">
+                        <i class="bi bi-table display-5 text-danger icon-box me-4"></i>
+                        <div>
+                            <h5 class="fw-bold mb-1">全局考勤报表</h5>
+                            <p class="small opacity-75 mb-0">查看所有员工数据，支持多维度筛选。</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-6">
+                <a href="{{ url_for('manage_users') }}" class="text-decoration-none text-reset">
+                    <div class="glass-card feature-card p-4 d-flex align-items-center">
+                        <i class="bi bi-people-fill display-5 icon-box me-4"></i>
+                        <div>
+                            <h5 class="fw-bold mb-1">用户账号管理</h5>
+                            <p class="small opacity-75 mb-0">新增、删除用户，重置密码及权限管理。</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 时钟和问候语逻辑保持不变
+    const hour = new Date().getHours();
+    let greet = "你好";
+    if (hour < 5) greet = "夜深了";
+    else if (hour < 11) greet = "早上好";
+    else if (hour < 13) greet = "中午好";
+    else if (hour < 18) greet = "下午好";
+    else greet = "晚上好";
+    
+    document.getElementById('greeting').innerText = document.getElementById('greeting').innerText.replace('你好', greet);
+
+    function updateClock() {
+        const now = new Date();
+        document.getElementById('live-clock').innerText = now.toLocaleTimeString('zh-CN', { hour12: false });
+        document.getElementById('live-date').innerText = now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+</script>
+{% endblock %}

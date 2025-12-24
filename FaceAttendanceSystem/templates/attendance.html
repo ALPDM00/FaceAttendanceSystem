@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}人脸考勤 - 人脸识别考勤系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <!-- 主容器：毛玻璃 + 大圆角 -->
+        <div class="glass-card rounded-4 p-4">
+            
+            <div class="text-center mb-4">
+                <h4 class="fw-bold"><i class="bi bi-camera-fill text-primary"></i> 智能人脸考勤</h4>
+                <p class="small opacity-75 mb-0">请正对摄像头，保持光线充足</p>
+            </div>
+
+            <div class="card-body text-center p-0">
+                <!-- 视频区域：增加 rounded-4 和 shadow -->
+                <div class="video-container mb-4 shadow-lg position-relative bg-black rounded-4 overflow-hidden" style="max-width: 100%;">
+                    <video id="video" autoplay playsinline style="width:100%; height:auto; transform: scaleX(-1); border-radius: 16px;"></video>
+                    <div id="scan-line" class="scan-line" style="display:none;"></div>
+                </div>
+
+                <canvas id="canvas" style="display:none;"></canvas>
+
+                <!-- 按钮组 -->
+                <div class="d-grid gap-3 col-md-8 mx-auto mb-4">
+                    <button id="attendance" class="btn btn-primary btn-lg rounded-pill shadow-sm transition-link">
+                        <i class="bi bi-camera"></i> 立即打卡
+                    </button>
+                    <!-- 使用半透明边框按钮 -->
+                    <button id="autoAttendance" class="btn btn-outline-secondary btn-lg rounded-pill" style="border-width: 2px;">
+                        <i class="bi bi-arrow-repeat"></i> 开启连续模式
+                    </button>
+                </div>
+
+                <div id="result" class="mt-4" style="min-height: 60px;"></div>
+
+                <!-- 历史记录：样式优化 -->
+                <div class="mt-4 text-start p-3 rounded-4 border border-secondary border-opacity-10" style="background: rgba(0,0,0,0.05);">
+                    <h6 class="opacity-75 border-bottom border-secondary border-opacity-10 pb-2 mb-3">今日识别记录</h6>
+                    <div id="attendanceHistory"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.video-container {
+    /* 确保视频的圆角不被内部内容遮挡 */
+    isolation: isolate; 
+}
+.scan-line {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 3px;
+    background: #0d6efd;
+    box-shadow: 0 0 20px #0d6efd;
+    animation: scan 1.5s infinite linear;
+    z-index: 10;
+}
+@keyframes scan {
+    0% { top: 0; opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { top: 100%; opacity: 0; }
+}
+.shake { animation: shake 0.5s; }
+@keyframes shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* JS 逻辑保持不变，为了节省篇幅，这里引用原逻辑即可 */
+let stream = null;
+let autoMode = false;
+let intervalId = null;
+let isProcessing = false;
+
+async function startCamera() {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+            audio: false
+        });
+        document.getElementById('video').srcObject = stream;
+    } catch (err) {
+        document.getElementById('result').innerHTML = `<div class="alert alert-danger rounded-pill">无法启动摄像头</div>`;
+    }
+}
+
+async function takeAttendance() {
+    if (isProcessing) return;
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const resultDiv = document.getElementById('result');
+    const btn = document.getElementById('attendance');
+
+    if (!video.srcObject) return;
+
+    if (!autoMode) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 识别中...';
+        isProcessing = true;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const photoData = canvas.toDataURL('image/jpeg', 0.7);
+
+    try {
+        const response = await fetch('/api/mark-attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: photoData })
+        });
+        const result = await response.json();
+
+        // 样式适配：使用 rounded-pill 和 border-0
+        if (result.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success fw-bold rounded-pill border-0 shadow-sm"><i class="bi bi-check-circle-fill"></i> ${result.message}</div>`;
+            addAttendanceHistory(result.username, result.message, 'success');
+        } else {
+            let alertClass = "alert-secondary";
+            let icon = "bi-question-circle";
+            if (result.is_unknown) { alertClass = "alert-danger shake"; icon = "bi-person-x-fill"; }
+            else if (result.message.includes("已打过卡")) { alertClass = "alert-warning"; icon = "bi-clock-history"; }
+            
+            resultDiv.innerHTML = `<div class="alert ${alertClass} fw-bold rounded-pill border-0 shadow-sm"><i class="bi ${icon}"></i> ${result.message}</div>`;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="alert alert-danger rounded-pill border-0">网络错误</div>`;
+    } finally {
+        if (!autoMode) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-camera"></i> 立即打卡';
+            isProcessing = false;
+        }
+        if(autoMode) setTimeout(() => { if(resultDiv.innerHTML.includes("未检测到")) resultDiv.innerHTML = ""; }, 2000);
+    }
+}
+
+function addAttendanceHistory(name, msg, type) {
+    const historyDiv = document.getElementById('attendanceHistory');
+    const time = new Date().toLocaleTimeString();
+    const colorClass = type === 'success' ? 'text-success' : 'text-danger';
+    
+    const div = document.createElement('div');
+    div.className = "d-flex justify-content-between align-items-center border-bottom border-secondary border-opacity-10 py-2 fade-in";
+    div.innerHTML = `<div><span class="badge rounded-pill bg-secondary bg-opacity-10 text-reset me-2">${time}</span><span class="fw-bold ${colorClass}">${name || '未知'}</span></div><small class="opacity-75">${msg}</small>`;
+    
+    historyDiv.prepend(div);
+    if (historyDiv.children.length > 5) historyDiv.lastElementChild.remove();
+}
+
+document.getElementById('autoAttendance').addEventListener('click', function() {
+    const btn = this;
+    const scanLine = document.getElementById('scan-line');
+    autoMode = !autoMode;
+    if (autoMode) {
+        btn.innerHTML = '<span class="spinner-grow spinner-grow-sm text-danger"></span> 停止';
+        btn.classList.replace('btn-outline-secondary', 'btn-danger');
+        document.getElementById('attendance').disabled = true;
+        scanLine.style.display = 'block';
+        takeAttendance();
+        intervalId = setInterval(takeAttendance, 3000);
+    } else {
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> 开启连续模式';
+        btn.classList.replace('btn-danger', 'btn-outline-secondary');
+        document.getElementById('attendance').disabled = false;
+        scanLine.style.display = 'none';
+        clearInterval(intervalId);
+    }
+});
+document.getElementById('attendance').addEventListener('click', takeAttendance);
+window.addEventListener('DOMContentLoaded', startCamera);
+window.addEventListener('beforeunload', () => { if (stream) stream.getTracks().forEach(track => track.stop()); if (intervalId) clearInterval(intervalId); });
+</script>
+{% endblock %}
