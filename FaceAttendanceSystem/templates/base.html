@@ -342,15 +342,21 @@
             document.getElementById('page-content').classList.add('show');
         });
 
-        // 添加页面可见性检测：当页面变为隐藏时（跳转开始），确保加载动画显示
+        // 修改页面可见性检测：当页面隐藏时（切屏或切换标签页），不显示加载动画；当页面再次可见时，确保加载动画隐藏
         document.addEventListener('visibilitychange', function() {
+            const loadingContainer = document.querySelector('.loading-container');
             if (document.visibilityState === 'hidden') {
-                // 页面正在跳转，确保加载动画显示
-                document.querySelector('.loading-container').classList.remove('hidden');
+                // 页面隐藏，可能是切屏或切换标签页，我们不显示加载动画，反而隐藏它
+                loadingContainer.classList.add('hidden');
+            } else {
+                // 页面再次可见，确保加载动画隐藏
+                loadingContainer.classList.add('hidden');
+                // 同时确保页面内容显示
+                document.getElementById('page-content').classList.add('show');
             }
         });
 
-        // 添加beforeunload事件：页面卸载前确保加载动画显示
+        // 保留beforeunload事件：页面卸载前确保加载动画显示（用于实际跳转）
         window.addEventListener('beforeunload', function() {
             document.querySelector('.loading-container').classList.remove('hidden');
         });
